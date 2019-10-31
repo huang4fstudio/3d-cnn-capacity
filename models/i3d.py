@@ -125,7 +125,7 @@ class I3D(nn.Module):
         i5b_out = self.inception_5b(i5a_out)
         
         a1_out = self.avgpool_1(i5b_out)
-        f_out = self.out_conv(x)
+        f_out = self.out_conv(a1_out)
         out_logits = flatten(f_out)
         out_probs = nn.functional.softmax(out_logits)
         return out_probs

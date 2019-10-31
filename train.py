@@ -28,12 +28,17 @@ def train(**kwargs):
         num_output_classes = 400
         train_dataset = Kinetics400('./data/400/kinetics_400_train.json')
         val_dataset = Kinetics400('./data/400/kinetics_400_validate.json')
+    
+    if dataset_name == 'ucf-101':
+        num_output_classes = 101
+        train_dataset = UCF101()
+        val_dataset = UCF101()
 
     if num_output_classes == -1:
         raise NotImplementedError('This dataset is currently not supported!')
 
     device = torch.device("cuda")
-    
+
     if architecture == 'i3d':
         model = I3D(3, num_output_classes).to(device)
 

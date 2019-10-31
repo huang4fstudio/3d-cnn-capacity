@@ -10,8 +10,8 @@ from alexandria.util import write_json, load_json
 from alexandria.util.video import load_video_with_fps, downsample_video_fps, resize_video
 
 # Open the dataset
-dataset_root_path = '/data/vision/ucf101/UCF101/'
-output_root_path = '/data/vision/ucf101/downsampled/'
+dataset_root_path = '/big/davidchan/ucf101/UCF101/'
+output_root_path = '/big/davidchan/ucf101/downsampled/'
 
 def proc_sample(sample):
 

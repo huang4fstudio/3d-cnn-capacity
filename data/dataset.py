@@ -11,6 +11,7 @@ class ActivityRecognitionDataset(torch.utils.data.Dataset):
         # Load the dataset
         with open(dataset_json, 'r') as jf:
             self.dataset_map = json.load(jf)
+        self.dataset_root = dataset_root
 
     def __len__(self):
         return len(self.dataset_map)
@@ -18,6 +19,6 @@ class ActivityRecognitionDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         elem = self.dataset_map[idx]
         return {
-            'video': np.load(os.path.join(dataset_root, elem['video_path'])),
+            'video': np.load(os.path.join(self.dataset_root, elem['path'])),
             'class': elem['class'],
         }

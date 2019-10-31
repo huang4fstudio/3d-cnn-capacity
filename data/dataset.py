@@ -1,7 +1,7 @@
 
 import json
 import torch
-import numpy
+import numpy as np
 
 
 class Kinetics400(torch.utils.data.Dataset):

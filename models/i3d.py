@@ -127,7 +127,8 @@ class I3D(nn.Module):
         a1_out = self.avgpool_1(i5b_out)
         f_out = self.out_conv(x)
         out_logits = flatten(f_out)
-        return out_logits
+        out_probs = nn.functional.softmax(out_logits)
+        return out_probs
 
     @staticmethod
     def build_filter_specs(filter_list):

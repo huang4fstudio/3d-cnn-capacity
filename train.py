@@ -1,7 +1,7 @@
 import click
 from models.i3d import I3D 
 import torch
-from data.dataset import Kinetics400
+from data.dataset import ActivityRecognitionDataset
 
 
 @click.command()
@@ -11,7 +11,7 @@ from data.dataset import Kinetics400
 @click.option('-e', '--epochs', 'Number of Epochs to Train the Model for', default=300)
 @click.option('-s', '--subsample', 'Subsample every N frames')
 @click.option('-a', '--architecture', 'Architecture to Use', default='i3d')
-@click.option('-d', '--dataset', 'Dataset to use', default='kinetics-400')
+@click.option('-d', '--dataset', 'Dataset to use', default='ucf101')
 def train(**kwargs):
     model = None
     num_output_classes = -1
@@ -26,13 +26,13 @@ def train(**kwargs):
     
     if dataset_name == 'kinetics-400':
         num_output_classes = 400
-        train_dataset = Kinetics400('./data/400/kinetics_400_train.json')
-        val_dataset = Kinetics400('./data/400/kinetics_400_validate.json')
+        # train_dataset = Kinetics400('./data/400/kinetics_400_train.json')
+        # val_dataset = Kinetics400('./data/400/kinetics_400_validate.json')
     
-    if dataset_name == 'ucf-101':
+    if dataset_name == 'ucf101':
         num_output_classes = 101
-        train_dataset = UCF101()
-        val_dataset = UCF101()
+        train_dataset = ActivityRecognitionDataset('../data/ucf101/ucf101_train.json', '/big/davidchan/ucf101/downsampled/')
+        val_dataset = ActivityRecognitionDataset('../data/ucf101/ucf101_val.json', '/big/davidchan/ucf101/downsampled/')
 
     if num_output_classes == -1:
         raise NotImplementedError('This dataset is currently not supported!')
@@ -56,13 +56,17 @@ def train(**kwargs):
 
 def train_epoch(model, device, train_loader, optimizer, epoch):
     model.train()
-    for _, (data, target) in enumerate(train_loader):
+    for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
         loss = torch.nn.functional.cross_entropy(output, target)
         loss.backward()
         optimizer.step()
+        if batch_idx % 20 == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.item()))
 
 
 def val_epoch(model, device, val_loader, epoch):
@@ -73,7 +77,7 @@ def val_epoch(model, device, val_loader, epoch):
         for data, target in val_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            val_loss += torch.nn.functional.cross_entropy(output, target)
+            val_loss += torch.nn.functional.cross_entropy(output, target).item()
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()
     val_loss /= len(val_loader.dataset)

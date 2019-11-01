@@ -5,13 +5,13 @@ from data.dataset import ActivityRecognitionDataset
 
 
 @click.command()
-@click.option('-l', '--learning_rate', 'Initial Learning Rate', default=0.001)
-@click.option('-m', '--momentum', "Momentum for SGD", default=0.9)
-@click.option('-b', '--batch_size', 'Batch Size', default=8)
-@click.option('-e', '--epochs', 'Number of Epochs to Train the Model for', default=300)
-@click.option('-s', '--subsample', 'Subsample every N frames')
-@click.option('-a', '--architecture', 'Architecture to Use', default='i3d')
-@click.option('-d', '--dataset', 'Dataset to use', default='ucf101')
+@click.option('-l', '--learning_rate', help='Initial Learning Rate', default=0.001)
+@click.option('-m', '--momentum', help="Momentum for SGD", default=0.9)
+@click.option('-b', '--batch_size', help='Batch Size', default=1)
+@click.option('-e', '--epochs', help='Number of Epochs to Train the Model for', default=300)
+@click.option('-s', '--subsample', help='Subsample every N frames')
+@click.option('-a', '--architecture', help='Architecture to Use', default='i3d')
+@click.option('-d', '--dataset', help='Dataset to use', default='ucf101')
 def train(**kwargs):
     model = None
     num_output_classes = -1
@@ -31,8 +31,8 @@ def train(**kwargs):
     
     if dataset_name == 'ucf101':
         num_output_classes = 101
-        train_dataset = ActivityRecognitionDataset('../data/ucf101/ucf101_train.json', '/big/davidchan/ucf101/downsampled/')
-        val_dataset = ActivityRecognitionDataset('../data/ucf101/ucf101_val.json', '/big/davidchan/ucf101/downsampled/')
+        train_dataset = ActivityRecognitionDataset('./data/ucf101/ucf101_train.json', '/big/davidchan/ucf101/downsampled/')
+        val_dataset = ActivityRecognitionDataset('./data/ucf101/ucf101_val.json', '/big/davidchan/ucf101/downsampled/')
 
     if num_output_classes == -1:
         raise NotImplementedError('This dataset is currently not supported!')
@@ -56,10 +56,17 @@ def train(**kwargs):
 
 def train_epoch(model, device, train_loader, optimizer, epoch):
     model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
+    for batch_idx, example in enumerate(train_loader):
+        data = example['video']
+        target = example['class']
+        data, target = data.to(device, dtype=torch.float), target.to(device, dtype=torch.long)
+        data = torch.transpose(data, 1, 4)
+        data = torch.transpose(data, 2, 4)
         optimizer.zero_grad()
         output = model(data)
+        output = output.unsqueeze(0)
+        print(output.size())
+        print(target.size())
         loss = torch.nn.functional.cross_entropy(output, target)
         loss.backward()
         optimizer.step()
@@ -74,8 +81,12 @@ def val_epoch(model, device, val_loader, epoch):
     val_loss = 0
     correct = 0
     with torch.no_grad():
-        for data, target in val_loader:
-            data, target = data.to(device), target.to(device)
+        for example in val_loader:
+            data = example['video']
+            target = example['class']
+            data, target = data.to(device, dtype=torch.float), target.to(device, dtype=torch.float)
+            data = torch.transpose(data, 1, 4)
+            data = torch.transpose(data, 2, 4)
             output = model(data)
             val_loss += torch.nn.functional.cross_entropy(output, target).item()
             pred = output.argmax(dim=1, keepdim=True)

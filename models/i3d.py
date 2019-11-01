@@ -1,8 +1,8 @@
 import torch.nn as nn
 from torch import flatten
 from torch import cat 
-from typing import Union
-import torchvision.models as models
+from typing import Union, Dict
+#import torchvision.models as models
 
 INCEPTION_BLOCK_FILTER_SPECS = {
     '3a': [64, 96, 128, 16, 32 ,32],
@@ -22,10 +22,11 @@ class Conv3d_BN(nn.Module):
                  out_channels : int,
                  kernel : Union[list, tuple],
                  stride: Union[int, list, tuple] = 1,
+                 padding: int = 0,
                  bn : bool = True,
-                 activation : nn.Module = nn.ReLU):
+                 activation : nn.Module = nn.ReLU()):
         super(Conv3d_BN, self).__init__()
-        self.conv = nn.Conv3d(in_channels, out_channels, kernel)
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel, stride=stride, padding=padding)
         self.activation = activation
         self.bn = None
         if bn:
@@ -45,18 +46,18 @@ class InceptionBlock(nn.Module):
         super(InceptionBlock, self).__init__()
         # branches counted from left to right, from p.5: https://arxiv.org/pdf/1705.07750.pdf
 
-        self.branch_1x1 = Conv3d_BN(in_channels, conv_out_channels['1x1'], (1, 1, 1))
+        self.branch_1x1 = Conv3d_BN(in_channels, conv_out_channels['1x1'], (1, 1, 1), padding=0)
         
         self.branch_3x3_1 = nn.Sequential(Conv3d_BN(in_channels, conv_out_channels['3x3_reduce1'], (1, 1, 1)), 
-            Conv3d_BN(conv_out_channels['3x3_reduce1'], conv_out_channels['3x3_1'], (3, 3, 3))
+            Conv3d_BN(conv_out_channels['3x3_reduce1'], conv_out_channels['3x3_1'], (3, 3, 3), padding=1)
         )
 
         self.branch_3x3_2 = nn.Sequential(Conv3d_BN(in_channels, conv_out_channels['3x3_reduce2'], (1, 1, 1)), 
-            Conv3d_BN(conv_out_channels['3x3_reduce2'], conv_out_channels['3x3_2'], (3, 3, 3))
+            Conv3d_BN(conv_out_channels['3x3_reduce2'], conv_out_channels['3x3_2'], (3, 3, 3), padding=1)
         )
 
-        self.branch_pool = nn.Sequential(nn.MaxPool3d((3, 3, 3)), 
-            Conv3d_BN(in_channels, conv_out_channels['pool_proj'], (1, 1, 1))
+        self.branch_pool = nn.Sequential(nn.MaxPool3d((3, 3, 3), stride=1), 
+            Conv3d_BN(in_channels, conv_out_channels['pool_proj'], (1, 1, 1), padding=1)
         )
     
     def forward(self, x):
@@ -71,19 +72,19 @@ class I3D(nn.Module):
 
     def __init__(self, in_channels, out_channels, pretrained_net=None):
         super(I3D, self).__init__()
-        self.conv_1 = Conv3d_BN(in_channels, 64, (7, 7, 7), stride=2)
+        self.conv_1 = Conv3d_BN(in_channels, 64, (7, 7, 7), stride=2, padding=3)
 
-        self.maxpool_1 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2))
+        self.maxpool_1 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
 
         self.conv_2 = Conv3d_BN(64, 64, (1, 1, 1))
-        self.conv_3 = Conv3d_BN(64, 192, (3, 3, 3))
+        self.conv_3 = Conv3d_BN(64, 192, (3, 3, 3), padding=1)
 
-        self.maxpool_2 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2))
+        self.maxpool_2 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
 
         self.inception_3a = InceptionBlock(192, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['3a']))
         self.inception_3b = InceptionBlock(256, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['3b']))
 
-        self.maxpool_3 = nn.MaxPool3d((3, 3, 3), stride=2)
+        self.maxpool_3 = nn.MaxPool3d((3, 3, 3), stride=2, padding=1)
         
         self.inception_4a = InceptionBlock(480, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['4a']))
         self.inception_4b = InceptionBlock(512, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['4b']))
@@ -96,11 +97,11 @@ class I3D(nn.Module):
         self.inception_5a = InceptionBlock(832, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['5a']))
         self.inception_5b = InceptionBlock(832, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['5b']))
        
-        self.avgpool_1 = nn.AvgPool3d((2, 7, 7))
+        self.avgpool_1 = nn.AvgPool3d((8, 7, 7))
         self.out_conv = nn.Conv3d(1024, out_channels, (1, 1, 1))
 
-        if pretrained_net is not None:
-            self.load_pretrained_weights(pretrained_net)
+        #if pretrained_net is not None:
+        #    self.load_pretrained_weights(pretrained_net)
     
     '''
     def load_pretrained_weights(self, net: models.googlenet.GoogLeNet):
@@ -111,20 +112,21 @@ class I3D(nn.Module):
     '''
     
     def forward(self, x):
+        print(x.size())
         c1_out = self.conv_1(x)
-
+        print(c1_out.size())
         m1_out = self.maxpool_1(c1_out)
-
+        print(m1_out.size())
         c2_out = self.conv_2(m1_out)
         c3_out = self.conv_3(c2_out)
-        
+        print(c3_out.size())
         m2_out = self.maxpool_2(c3_out)
 
         i3a_out = self.inception_3a(m2_out)
         i3b_out = self.inception_3b(i3a_out)
 
         m3_out = self.maxpool_3(i3b_out)
-
+        print(m3_out.size())
         i4a_out = self.inception_4a(m3_out)
         i4b_out = self.inception_4b(i4a_out)
         i4c_out = self.inception_4c(i4b_out)
@@ -135,12 +137,13 @@ class I3D(nn.Module):
 
         i5a_out = self.inception_5a(m4_out) 
         i5b_out = self.inception_5b(i5a_out)
-        
+        print(i5b_out.size())
         a1_out = self.avgpool_1(i5b_out)
+        print(a1_out.size())
         f_out = self.out_conv(a1_out)
+        print(f_out.size())
         out_logits = flatten(f_out)
-        out_probs = nn.functional.softmax(out_logits)
-        return out_probs
+        return out_logits
 
     @staticmethod
     def build_filter_specs(filter_list):

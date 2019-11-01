@@ -7,7 +7,7 @@ import numpy as np
 import multiprocessing.pool
 
 from alexandria.util import write_json, load_json
-from alexandria.util.video import load_video_with_fps, downsample_video_fps, resize_video
+from alexandria.util.video import load_video_with_fps, downsample_video_fps, resize_video, shatter_video
 
 # Open the dataset
 dataset_root_path = '/big/davidchan/ucf101/UCF101/'
@@ -21,22 +21,29 @@ def proc_sample(sample):
     try:
         data = load_video_with_fps(s['path'])
         if data['frames'] is not None and data['frames'].shape[0] > 0:
-            downsampled = downsample_video_fps(data['frames'], data['fps'] if data['fps'] else 30, 5)
-            resized = resize_video(downsampled, (224,224))
 
-            # Write the file
-            np.save(os.path.join(output_root_path, '{}.npy'.format(idx)), resized)
+            # Shatter the loaded video
+            resized = resize_video(data['frames'], (224,224))
+            clips = shatter_video(resized)
 
-            output = {
-                'path': '{}.npy'.format(idx),
-                'video_path': s['path'],
-                'id': idx,
-                'class': s['class'],
-                'class_raw': s['class_raw'],
-                'split': s['split'],
-            }
+            # downsampled = downsample_video_fps(data['frames'], data['fps'] if data['fps'] else 30, 5)
+            outputs = []
+            for isx, clip in enumerate(clips):
 
-            return output
+                # Write the file
+                np.save(os.path.join(output_root_path, '{}.npy'.format(idx)), clip)
+
+                output = {
+                    'path': '{}_{}.npy'.format(idx, isx),
+                    'video_path': s['path'],
+                    'id': idx,
+                    'class': s['class'],
+                    'class_raw': s['class_raw'],
+                    'split': s['split'],
+                }
+                outputs.append(output)
+
+            return outputs
         return None
     except Exception as ex:
         print(s, ex)
@@ -63,7 +70,7 @@ elems = []
 with multiprocessing.pool.Pool(6) as pool:
     for e in tqdm.tqdm(pool.imap_unordered(proc_sample, enumerate(dataset)), total=len(dataset)):
         if e is not None:
-            elems.append(e)
+            elems += e
 
 
 write_json([e for e in elems if e['split'] == 'train'], 'data/ucf101/ucf101_train.json')

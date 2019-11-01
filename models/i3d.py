@@ -2,6 +2,7 @@ import torch.nn as nn
 from torch import flatten
 from torch import cat 
 from typing import Union
+import torchvision.models as models
 
 INCEPTION_BLOCK_FILTER_SPECS = {
     '3a': [64, 96, 128, 16, 32 ,32],
@@ -68,7 +69,7 @@ class InceptionBlock(nn.Module):
 
 class I3D(nn.Module):
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, pretrained_net=None):
         super(I3D, self).__init__()
         self.conv_1 = Conv3d_BN(in_channels, 64, (7, 7, 7), stride=2)
 
@@ -98,6 +99,17 @@ class I3D(nn.Module):
         self.avgpool_1 = nn.AvgPool3d((2, 7, 7))
         self.out_conv = nn.Conv3d(1024, out_channels, (1, 1, 1))
 
+        if pretrained_net is not None:
+            self.load_pretrained_weights(pretrained_net)
+    
+    '''
+    def load_pretrained_weights(self, net: models.googlenet.GoogLeNet):
+        self.conv_1.conv.weight = nn.Parameter(net.conv1.conv.weight.repeat(7, 1, 1))
+        self.conv_2.conv.weight = nn.Parameter(net.conv2.conv.weight.repeat(1, 1, 1))
+        self.conv_2.conv.weight = nn.Parameter(net.conv2.conv.weight.repeat(1, 1, 1))
+        pass
+    '''
+    
     def forward(self, x):
         c1_out = self.conv_1(x)
 

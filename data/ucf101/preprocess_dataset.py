@@ -31,7 +31,7 @@ def proc_sample(sample):
             for isx, clip in enumerate(clips):
 
                 # Write the file
-                np.save(os.path.join(output_root_path, '{}.npy'.format(idx)), clip)
+                np.save(os.path.join(output_root_path, '{}_{}.npy'.format(idx, isx)), clip)
 
                 output = {
                     'path': '{}_{}.npy'.format(idx, isx),

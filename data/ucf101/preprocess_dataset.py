@@ -24,7 +24,7 @@ def proc_sample(sample):
 
             # Shatter the loaded video
             resized = resize_video(data['frames'], (224,224))
-            clips = shatter_video(resized)
+            clips = shatter_video(resized, 64, 32, True)
 
             # downsampled = downsample_video_fps(data['frames'], data['fps'] if data['fps'] else 30, 5)
             outputs = []

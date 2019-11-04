@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 from torch import flatten
 from torch import cat 
 from typing import Union, Dict
@@ -112,21 +113,16 @@ class I3D(nn.Module):
     '''
     
     def forward(self, x):
-        print(x.size())
         c1_out = self.conv_1(x)
-        print(c1_out.size())
         m1_out = self.maxpool_1(c1_out)
-        print(m1_out.size())
         c2_out = self.conv_2(m1_out)
         c3_out = self.conv_3(c2_out)
-        print(c3_out.size())
         m2_out = self.maxpool_2(c3_out)
 
         i3a_out = self.inception_3a(m2_out)
         i3b_out = self.inception_3b(i3a_out)
 
         m3_out = self.maxpool_3(i3b_out)
-        print(m3_out.size())
         i4a_out = self.inception_4a(m3_out)
         i4b_out = self.inception_4b(i4a_out)
         i4c_out = self.inception_4c(i4b_out)
@@ -137,12 +133,10 @@ class I3D(nn.Module):
 
         i5a_out = self.inception_5a(m4_out) 
         i5b_out = self.inception_5b(i5a_out)
-        print(i5b_out.size())
         a1_out = self.avgpool_1(i5b_out)
-        print(a1_out.size())
         f_out = self.out_conv(a1_out)
-        print(f_out.size())
-        out_logits = flatten(f_out)
+        out_logits = torch.squeeze(f_out)
+        #out_logits = flatten(f_out)
         return out_logits
 
     @staticmethod

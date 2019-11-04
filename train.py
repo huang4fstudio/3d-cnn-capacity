@@ -5,9 +5,9 @@ from data.dataset import ActivityRecognitionDataset
 
 
 @click.command()
-@click.option('-l', '--learning_rate', help='Initial Learning Rate', default=0.001)
+@click.option('-l', '--learning_rate', help='Initial Learning Rate', default=0.0001)
 @click.option('-m', '--momentum', help="Momentum for SGD", default=0.9)
-@click.option('-b', '--batch_size', help='Batch Size', default=1)
+@click.option('-b', '--batch_size', help='Batch Size', default=8)
 @click.option('-e', '--epochs', help='Number of Epochs to Train the Model for', default=300)
 @click.option('-s', '--subsample', help='Subsample every N frames')
 @click.option('-a', '--architecture', help='Architecture to Use', default='i3d')
@@ -31,8 +31,8 @@ def train(**kwargs):
     
     if dataset_name == 'ucf101':
         num_output_classes = 101
-        train_dataset = ActivityRecognitionDataset('./data/ucf101/ucf101_train.json', '/big/davidchan/ucf101/downsampled/')
-        val_dataset = ActivityRecognitionDataset('./data/ucf101/ucf101_val.json', '/big/davidchan/ucf101/downsampled/')
+        train_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_train.json', '/data/ucf101/downsampled/')
+        val_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_val.json', '/data/ucf101/downsampled/')
 
     if num_output_classes == -1:
         raise NotImplementedError('This dataset is currently not supported!')
@@ -64,9 +64,6 @@ def train_epoch(model, device, train_loader, optimizer, epoch):
         data = torch.transpose(data, 2, 4)
         optimizer.zero_grad()
         output = model(data)
-        output = output.unsqueeze(0)
-        print(output.size())
-        print(target.size())
         loss = torch.nn.functional.cross_entropy(output, target)
         loss.backward()
         optimizer.step()

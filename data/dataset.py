@@ -19,6 +19,6 @@ class ActivityRecognitionDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         elem = self.dataset_map[idx]
         return {
-            'video': np.load(os.path.join(self.dataset_root, elem['path'])),
+            'video': np.load(os.path.join(self.dataset_root, elem['path'])) / 255.0,
             'class': elem['class'],
         }

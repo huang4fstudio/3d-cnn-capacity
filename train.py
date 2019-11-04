@@ -22,13 +22,15 @@ def train(**kwargs):
 
     # Distributed training initialization
     if kwargs['distributed']:
-        torch.cuda.set_device(kwargs['local_rank'])
+        torch.cuda.set_device(int(kwargs['local_rank']))
         torch.distributed.init_process_group(backend='nccl',
                                              init_method='env://')
         torch.backends.cudnn.benchmark = True
         torch.manual_seed(42)
-    is_master_rank = not kwargs['distributed'] or (kwargs['distributed'] and kwargs['local_rank'] == 0)
+    is_master_rank = not kwargs['distributed'] or (kwargs['distributed'] and int(kwargs['local_rank']) == 0)
 
+    if is_master_rank:
+        print('Initializing models/datasets')
     # Initialization
     model = None
     num_output_classes = -1
@@ -77,21 +79,24 @@ def train(**kwargs):
         optimizer.load_state_dict(checkpoint['optimizer'])
         amp.load_state_dict(checkpoint['amp'])
 
+    if is_master_rank:
+        print('Training...')
 
     for epoch in range(1, epochs + 1):
-        train_epoch(model, train_loader, optimizer, epoch)
-        val_epoch(model, val_loader, epoch)
+        train_epoch(model, train_loader, optimizer, epoch, is_master_rank)
+        val_epoch(model, val_loader, epoch, is_master_rank)
 
         # Save the model
-        checkpoint = {
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'amp': amp.state_dict(),
-        }
-        torch.save(checkpoint, 'amp_checkpoint.pt')
+        if is_master_rank:
+            checkpoint = {
+                'model': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'amp': amp.state_dict(),
+            }
+            torch.save(checkpoint, 'amp_checkpoint.pt')
 
 
-def train_epoch(model, train_loader, optimizer, epoch):
+def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
     model.train()
     for batch_idx, example in enumerate(train_loader):
         data = example['video']
@@ -111,13 +116,13 @@ def train_epoch(model, train_loader, optimizer, epoch):
             scaled_loss.backward()
 
         optimizer.step()
-        if batch_idx % 20 == 0:
+        if batch_idx % 20 == 0 and is_master_rank:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
 
 
-def val_epoch(model, val_loader, epoch):
+def val_epoch(model, val_loader, epoch, is_master_rank):
     model.eval()
     val_loss = 0
     correct = 0
@@ -133,7 +138,8 @@ def val_epoch(model, val_loader, epoch):
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()
     val_loss /= len(val_loader.dataset)
-    print('\nVal: Average Loss: {:.4f}, Accuracy: {}/{}\n'.format(
+    if is_master_rank:
+        print('\nVal: Average Loss: {:.4f}, Accuracy: {}/{}\n'.format(
         val_loss, correct, len(val_loader.dataset)
     ))
 

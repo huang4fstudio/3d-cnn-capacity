@@ -31,7 +31,8 @@ def proc_sample(sample):
             for isx, clip in enumerate(clips):
 
                 # Write the file
-                np.save(os.path.join(output_root_path, '{}_{}.npy'.format(idx, isx)), clip.astype(np.uint8))
+                clip = clip.astype(np.uint8)
+                np.save(os.path.join(output_root_path, '{}_{}.npy'.format(idx, isx)), clip)
 
                 output = {
                     'path': '{}_{}.npy'.format(idx, isx),
@@ -73,5 +74,5 @@ with multiprocessing.pool.Pool(6) as pool:
             elems += e
 
 
-write_json([e for e in elems if e['split'] == 'train'], 'data/ucf101/ucf101_train.json')
-write_json([e for e in elems if e['split'] == 'val'], 'data/ucf101/ucf101_val.json')
+write_json([e for e in elems if e['split'] == 'train'], '/data/ucf101/ucf101_train.json')
+write_json([e for e in elems if e['split'] == 'val'], '/data/ucf101/ucf101_val.json')

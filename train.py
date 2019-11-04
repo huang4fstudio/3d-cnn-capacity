@@ -1,7 +1,10 @@
 import click
-from models.i3d import I3D 
+from models.i3d import I3D
 import torch
 from data.dataset import ActivityRecognitionDataset
+
+from apex import amp
+from apex.parallel import DistributedDataParallel
 
 
 @click.command()
@@ -12,10 +15,24 @@ from data.dataset import ActivityRecognitionDataset
 @click.option('-s', '--subsample', help='Subsample every N frames')
 @click.option('-a', '--architecture', help='Architecture to Use', default='i3d')
 @click.option('-d', '--dataset', help='Dataset to use', default='ucf101')
+@click.option('-r', '--restore', help='Checkpoint file', default=None)
+@click.option('--distributed', help='use distributed training', is_flag=True, default=False)
+@click.option('--local_rank')
 def train(**kwargs):
+
+    # Distributed training initialization
+    if kwargs['distributed']:
+        torch.cuda.set_device(kwargs['local_rank'])
+        torch.distributed.init_process_group(backend='nccl',
+                                             init_method='env://')
+        torch.backends.cudnn.benchmark = True
+        torch.manual_seed(42)
+    is_master_rank = not kwargs['distributed'] or (kwargs['distributed'] and kwargs['local_rank'] == 0)
+
+    # Initialization
     model = None
     num_output_classes = -1
- 
+
     lr = kwargs['learning_rate']
     architecture = kwargs['architecture']
     dataset_name = kwargs['dataset']
@@ -23,49 +40,76 @@ def train(**kwargs):
     momentum = kwargs['momentum']
     epochs = kwargs['epochs']
 
-    
+
     if dataset_name == 'kinetics-400':
-        num_output_classes = 400
+        pass
+        # num_output_classes = 400
         # train_dataset = Kinetics400('./data/400/kinetics_400_train.json')
         # val_dataset = Kinetics400('./data/400/kinetics_400_validate.json')
-    
-    if dataset_name == 'ucf101':
+    elif dataset_name == 'ucf101':
         num_output_classes = 101
         train_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_train.json', '/data/ucf101/downsampled/')
         val_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_val.json', '/data/ucf101/downsampled/')
-
-    if num_output_classes == -1:
+    else:
         raise NotImplementedError('This dataset is currently not supported!')
 
-    device = torch.device("cuda")
-
     if architecture == 'i3d':
-        model = I3D(3, num_output_classes).to(device)
-
-    if model is None:
+        model = I3D(3, num_output_classes).cuda()
+    else:
         raise NotImplementedError('This model is currently not supported!')
-    
+
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=1, pin_memory=True)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+
+    # Apex AMP distributed code
+    model, optimizer = amp.initialize(model, optimizer, opt_level='O2') # Let's keep it at O2 for now
+
+    # Distributed reduction
+    if kwargs['distributed']:
+        model = DistributedDataParallel(model)
+
+    # Restore
+    if kwargs['restore'] is not None:
+        checkpoint = torch.load(kwargs['restore'])
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        amp.load_state_dict(checkpoint['amp'])
+
+
     for epoch in range(1, epochs + 1):
-        train_epoch(model, device, train_loader, optimizer, epoch)
-        val_epoch(model, device, val_loader, epoch)
+        train_epoch(model, train_loader, optimizer, epoch)
+        val_epoch(model, val_loader, epoch)
+
+        # Save the model
+        checkpoint = {
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'amp': amp.state_dict(),
+        }
+        torch.save(checkpoint, 'amp_checkpoint.pt')
 
 
-def train_epoch(model, device, train_loader, optimizer, epoch):
+def train_epoch(model, train_loader, optimizer, epoch):
     model.train()
     for batch_idx, example in enumerate(train_loader):
         data = example['video']
         target = example['class']
-        data, target = data.to(device, dtype=torch.float), target.to(device, dtype=torch.long)
+        data, target = data.cuda(), target.cuda()
         data = torch.transpose(data, 1, 4)
         data = torch.transpose(data, 2, 4)
+
         optimizer.zero_grad()
+
+        # Compute the forward pass
         output = model(data)
         loss = torch.nn.functional.cross_entropy(output, target)
-        loss.backward()
+
+        # Loss stepping
+        with amp.scale_loss(loss, optimizer) as scaled_loss:
+            scaled_loss.backward()
+
         optimizer.step()
         if batch_idx % 20 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -73,7 +117,7 @@ def train_epoch(model, device, train_loader, optimizer, epoch):
                 100. * batch_idx / len(train_loader), loss.item()))
 
 
-def val_epoch(model, device, val_loader, epoch):
+def val_epoch(model, val_loader, epoch):
     model.eval()
     val_loss = 0
     correct = 0
@@ -81,7 +125,7 @@ def val_epoch(model, device, val_loader, epoch):
         for example in val_loader:
             data = example['video']
             target = example['class']
-            data, target = data.to(device, dtype=torch.float), target.to(device, dtype=torch.float)
+            data, target = data.cuda(), target.cuda()
             data = torch.transpose(data, 1, 4)
             data = torch.transpose(data, 2, 4)
             output = model(data)

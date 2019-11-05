@@ -88,7 +88,7 @@ def train(**kwargs):
 
     for epoch in range(1, epochs + 1):
         train_epoch(model, train_loader, optimizer, epoch, is_master_rank)
-        val_epoch(model, val_loader, epoch, is_master_rank)
+        val_epoch(model, val_loader, epoch, batch_size, is_master_rank)
 
         # Save the model
         if is_master_rank:
@@ -121,15 +121,17 @@ def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
 
         optimizer.step()
         if batch_idx % 20 == 0 and is_master_rank:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, current batch: {:.6f}'.format(
                 epoch, batch_idx, len(train_loader),
                 100. * batch_idx / len(train_loader), loss.item()))
 
 
-def val_epoch(model, val_loader, epoch, is_master_rank):
+def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
     model.eval()
     val_loss = 0
     correct = 0
+    
+    total_examples = 0
     with torch.no_grad():
         for example in val_loader:
             data = example['video']
@@ -141,11 +143,13 @@ def val_epoch(model, val_loader, epoch, is_master_rank):
             val_loss += torch.nn.functional.cross_entropy(output, target).item()
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()
-    val_loss /= len(val_loader.dataset)
+            total_examples += target.size()[0]
+    val_loss /= len(val_loader)
     if is_master_rank:
-        print('\nVal: Average Loss: {:.4f}, Accuracy: {}/{}\n'.format(
-        val_loss, correct, len(val_loader.dataset)
+        print('\nVal: Average Loss, per batch: {:.4f}, Accuracy: {}/{}\n'.format(
+        val_loss, correct, len(val_loader) * batch_size 
     ))
+        print('\nDebug: Total Images: {}', total_examples)
 
 
 if __name__ == '__main__':

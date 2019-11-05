@@ -60,8 +60,12 @@ def train(**kwargs):
     else:
         raise NotImplementedError('This model is currently not supported!')
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers=1, pin_memory=True)
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
+    val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
+    
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=1, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=1, pin_memory=True)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
@@ -118,7 +122,7 @@ def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
         optimizer.step()
         if batch_idx % 20 == 0 and is_master_rank:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
+                epoch, batch_idx, len(train_loader),
                 100. * batch_idx / len(train_loader), loss.item()))
 
 

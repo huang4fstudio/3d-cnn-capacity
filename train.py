@@ -133,7 +133,7 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
     
     total_examples = 0
     with torch.no_grad():
-        for example in val_loader:
+        for idx, example in enumerate(val_loader):
             data = example['video']
             target = example['class']
             data, target = data.cuda(), target.cuda()
@@ -149,7 +149,8 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
         print('\nVal: Average Loss, per batch: {:.4f}, Accuracy: {}/{}\n'.format(
         val_loss, correct, len(val_loader) * batch_size 
     ))
-        print('\nDebug: Total Images: {}', total_examples)
+
+        print('Debug: Total Images: {} == {}'.format(total_examples, len(val_loader) * batch_size))
 
 
 if __name__ == '__main__':

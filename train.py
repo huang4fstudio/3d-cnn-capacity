@@ -117,7 +117,7 @@ def train(**kwargs):
             torch.save(checkpoint, 'amp_checkpoint.pt')
 
 
-def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
+def train_epoch(model, train_loader, optimizer, epoch, batch_size, is_master_rank):
     model.train()
     for batch_idx, example in enumerate(train_loader):
         data = example['video']
@@ -138,7 +138,7 @@ def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
 
         optimizer.step()
         if batch_idx % 20 == 0 and is_master_rank:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, current batch: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, per sample: {:.6f}'.format(
                 epoch, batch_idx, len(train_loader),
                 100. * batch_idx / len(train_loader), loss.item()))
             wandb.log({
@@ -152,6 +152,7 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
     correct = 0
 
     total_examples = 0
+    total_batches = 0
     with torch.no_grad():
         for idx, example in enumerate(val_loader):
             data = example['video']
@@ -164,16 +165,23 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()
             total_examples += target.size()[0]
-    val_loss /= len(val_loader)
+            total_batches += 1
+    
+    torch.distributed.reduce(val_loss, dst=0)
+    torch.distributed.reduce(total_batches, dst=0)
+
+    torch.distributed.reduce(correct, dst=0)
+    torch.distributed.reduce(total_examples, dst=0)
+    
     if is_master_rank:
-        print('\nVal: Average Loss, per batch: {:.4f}, Accuracy: {}/{}\n'.format(
-        val_loss, correct, len(val_loader) * batch_size
+        val_loss /= total_batches
+        print('\nVal: Average Loss, per sample: {:.4f}, Accuracy: {}/{}\n'.format(
+        val_loss, correct, total_examples
     ))
 
-        print('Debug: Total Images: {} == {}'.format(total_examples, len(val_loader) * batch_size))
         wandb.log({
-                'Validation Loss': loss.item(),
-                'Validation Accuracy': correct/len(val_loader),
+                'Validation Loss': val_loss,
+                'Validation Accuracy': correct/total_examples,
             })
 
 

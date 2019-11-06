@@ -1,10 +1,13 @@
 import click
+import os
 from models.i3d import I3D
 import torch
 from data.dataset import ActivityRecognitionDataset
 
 from apex import amp
 from apex.parallel import DistributedDataParallel
+
+import wandb
 
 
 @click.command()
@@ -18,7 +21,14 @@ from apex.parallel import DistributedDataParallel
 @click.option('-r', '--restore', help='Checkpoint file', default=None)
 @click.option('--distributed', help='use distributed training', is_flag=True, default=False)
 @click.option('--local_rank')
+# Wandb Project
+@click.option('--dryrun', default=False, is_flag=True, help='Run the model as a dryrun')
+@click.option('--wandb-project', default='video-captioning', help='The W&B Project to use')
+@click.option('--wandb-tags', default=None, help='Comma separated list of tags to use for the run')
 def train(**kwargs):
+
+    if kwargs['dryrun']:
+        os.environ['WANDB_MODE'] = 'dryrun'
 
     # Distributed training initialization
     if kwargs['distributed']:
@@ -31,6 +41,9 @@ def train(**kwargs):
 
     if is_master_rank:
         print('Initializing models/datasets')
+        init_tags = kwargs['wandb_tags'].split(',') if kwargs['wandb_tags'] else []
+        wandb.init(project='gerald', tags=init_tags)
+
     # Initialization
     model = None
     num_output_classes = -1
@@ -62,7 +75,7 @@ def train(**kwargs):
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
-    
+
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=1, pin_memory=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=1, pin_memory=True)
@@ -124,13 +137,16 @@ def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, current batch: {:.6f}'.format(
                 epoch, batch_idx, len(train_loader),
                 100. * batch_idx / len(train_loader), loss.item()))
+            wandb.log({
+                'Training Loss': loss.item(),
+            })
 
 
 def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
     model.eval()
     val_loss = 0
     correct = 0
-    
+
     total_examples = 0
     with torch.no_grad():
         for idx, example in enumerate(val_loader):
@@ -147,10 +163,14 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
     val_loss /= len(val_loader)
     if is_master_rank:
         print('\nVal: Average Loss, per batch: {:.4f}, Accuracy: {}/{}\n'.format(
-        val_loss, correct, len(val_loader) * batch_size 
+        val_loss, correct, len(val_loader) * batch_size
     ))
 
         print('Debug: Total Images: {} == {}'.format(total_examples, len(val_loader) * batch_size))
+        wandb.log({
+                'Validation Loss': loss.item(),
+                'Validation Accuracy': correct/len(val_loader),
+            })
 
 
 if __name__ == '__main__':

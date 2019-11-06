@@ -43,6 +43,7 @@ def train(**kwargs):
         print('Initializing models/datasets')
         init_tags = kwargs['wandb_tags'].split(',') if kwargs['wandb_tags'] else []
         wandb.init(project='gerald', tags=init_tags)
+        wandb.config.update(kwargs)
 
     # Initialization
     model = None
@@ -72,6 +73,9 @@ def train(**kwargs):
         model = I3D(3, num_output_classes).cuda()
     else:
         raise NotImplementedError('This model is currently not supported!')
+
+    if is_master_rank:
+        wandb.watch(model, log="all", log_freq=100)
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, shuffle=True)
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)

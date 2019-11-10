@@ -160,8 +160,8 @@ def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
         if batch_idx % 20 == 0 and is_master_rank:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, per sample: {:.6f}\tAccuracy:{:.2%}'.format(
                 epoch, batch_idx, len(train_loader),
-                100. * batch_idx / len(train_loader), loss.item()),
-                (total_correct / total_examples).item())
+                100. * batch_idx / len(train_loader), loss.item(),
+                (total_correct / total_examples).item()))
             wandb.log({
                 'Training Loss': loss.item(),
             })

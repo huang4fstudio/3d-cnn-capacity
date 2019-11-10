@@ -117,7 +117,7 @@ def train(**kwargs):
             torch.save(checkpoint, 'amp_checkpoint.pt')
 
 
-def train_epoch(model, train_loader, optimizer, epoch, batch_size, is_master_rank):
+def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
     model.train()
 
     total_correct = torch.tensor(0).cuda()
@@ -169,11 +169,11 @@ def train_epoch(model, train_loader, optimizer, epoch, batch_size, is_master_ran
 
 def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
     model.eval()
-    val_loss = 0
-    correct = 0
+    val_loss = torch.tensor(0.0).float().cuda()
+    correct = torch.tensor(0.0).float().cuda()
 
-    total_examples = 0
-    total_batches = 0
+    total_examples = torch.tensor(0).cuda()
+    total_batches = torch.tensor(0).cuda()
     with torch.no_grad():
         for idx, example in enumerate(val_loader):
             data = example['video']
@@ -182,9 +182,9 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
             data = torch.transpose(data, 1, 4)
             data = torch.transpose(data, 2, 4)
             output = model(data)
-            val_loss += torch.nn.functional.cross_entropy(output, target).item()
+            val_loss += torch.nn.functional.cross_entropy(output, target)
             pred = output.argmax(dim=1, keepdim=True)
-            correct += pred.eq(target.view_as(pred)).sum().item()
+            correct += pred.eq(target.view_as(pred)).sum()
             total_examples += target.size()[0]
             total_batches += 1
 
@@ -196,13 +196,13 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
 
     if is_master_rank:
         val_loss /= total_batches
-        print('\nVal: Average Loss, per sample: {:.4f}, Accuracy: {}/{}\n'.format(
-        val_loss, correct, total_examples
+        print('\nVal: Average Loss, per sample: {:.4f}, Accuracy: {}/{} ({:.3%})\n'.format(
+        val_loss.item(), correct.item(), total_examples.item(), correct.item()/total_examples.item()
     ))
 
         wandb.log({
-                'Validation Loss': val_loss,
-                'Validation Accuracy': correct/total_examples,
+                'Validation Loss': val_loss.item(),
+                'Validation Accuracy': correct.item()/total_examples.item(),
             })
 
 

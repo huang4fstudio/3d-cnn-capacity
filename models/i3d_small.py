@@ -72,7 +72,7 @@ class InceptionBlock(nn.Module):
 class I3DSmall(nn.Module):
 
     def __init__(self, in_channels, out_channels, pretrained_net=None):
-        super(I3D, self).__init__()
+        super(I3DSmall, self).__init__()
         self.conv_1 = Conv3d_BN(in_channels, 64, (7, 7, 7), stride=2, padding=3)
 
         self.maxpool_1 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))

@@ -1,6 +1,7 @@
 import click
 import os
 from models.i3d import I3D
+from models.i3d_small import I3DSmall
 import torch
 from data.dataset import ActivityRecognitionDataset
 
@@ -71,6 +72,8 @@ def train(**kwargs):
 
     if architecture == 'i3d':
         model = I3D(3, num_output_classes).cuda()
+    elif architecture == 'i3d_small':
+        model = I3DSmall(3, num_output_classes).cuda()
     else:
         raise NotImplementedError('This model is currently not supported!')
 
@@ -158,12 +161,13 @@ def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
 
         # Logging
         if batch_idx % 20 == 0 and is_master_rank:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, per sample: {:.6f}\tAccuracy:{:.2%}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, per sample: {:.6f}\tAccuracy: {:.2%}'.format(
                 epoch, batch_idx, len(train_loader),
-                100. * batch_idx / len(train_loader), loss.item(),
-                (total_correct / total_examples).item()))
+                100. * batch_idx / len(train_loader), loss.item()),
+                (total_correct / total_examples).item())
             wandb.log({
                 'Training Loss': loss.item(),
+                'Training Accuracy': (total_correct / total_examples).item(),
             })
 
 

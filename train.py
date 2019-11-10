@@ -119,28 +119,49 @@ def train(**kwargs):
 
 def train_epoch(model, train_loader, optimizer, epoch, batch_size, is_master_rank):
     model.train()
+
+    total_correct = torch.tensor(0).cuda()
+    total_examples = torch.tensor(0).cuda()
     for batch_idx, example in enumerate(train_loader):
+
+        # Metrics
+        correct = torch.tensor(0).cuda()
+        examples = torch.tensor(0).cuda()
+
+        # Model data setup
         data = example['video']
         target = example['class']
         data, target = data.cuda(), target.cuda()
         data = torch.transpose(data, 1, 4)
         data = torch.transpose(data, 2, 4)
 
-        optimizer.zero_grad()
-
         # Compute the forward pass
+        optimizer.zero_grad()
         output = model(data)
         loss = torch.nn.functional.cross_entropy(output, target)
+
+        # Compute training accuracy
+        pred = output.argmax(dim=1, keepdim=True)
+        correct += pred.eq(target.view_as(pred)).sum()
+        examples += target.size()[0]
 
         # Loss stepping
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
-
         optimizer.step()
+
+        # Reduction as sum
+        torch.distributed.reduce(examples, dst=0)
+        torch.distributed.reduce(correct, dst=0)
+        total_correct += correct
+        total_examples += examples
+
+        # Logging
         if batch_idx % 20 == 0 and is_master_rank:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, per sample: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss, per sample: {:.6f}\tAccuracy:{:.2%}'.format(
                 epoch, batch_idx, len(train_loader),
-                100. * batch_idx / len(train_loader), loss.item()))
+                100. * batch_idx / len(train_loader), loss.item()),
+                (total_correct / total_examples).item())
             wandb.log({
                 'Training Loss': loss.item(),
             })
@@ -166,13 +187,13 @@ def val_epoch(model, val_loader, epoch, batch_size, is_master_rank):
             correct += pred.eq(target.view_as(pred)).sum().item()
             total_examples += target.size()[0]
             total_batches += 1
-    
+
     torch.distributed.reduce(val_loss, dst=0)
     torch.distributed.reduce(total_batches, dst=0)
 
     torch.distributed.reduce(correct, dst=0)
     torch.distributed.reduce(total_examples, dst=0)
-    
+
     if is_master_rank:
         val_loss /= total_batches
         print('\nVal: Average Loss, per sample: {:.4f}, Accuracy: {}/{}\n'.format(

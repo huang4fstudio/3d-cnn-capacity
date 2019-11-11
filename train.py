@@ -123,13 +123,13 @@ def train(**kwargs):
 def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):
     model.train()
 
-    total_correct = torch.tensor(0).cuda()
-    total_examples = torch.tensor(0).cuda()
+    total_correct = torch.tensor(0.0).cuda()
+    total_examples = torch.tensor(0.0).cuda()
     for batch_idx, example in enumerate(train_loader):
 
         # Metrics
-        correct = torch.tensor(0).cuda()
-        examples = torch.tensor(0).cuda()
+        correct = torch.tensor(0.0).cuda()
+        examples = torch.tensor(0.0).cuda()
 
         # Model data setup
         data = example['video']

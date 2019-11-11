@@ -1,5 +1,6 @@
 import click
 import os
+import datetime
 from models.i3d import I3D
 from models.i3d_small import I3DSmall
 import torch
@@ -30,6 +31,10 @@ def train(**kwargs):
 
     if kwargs['dryrun']:
         os.environ['WANDB_MODE'] = 'dryrun'
+        logdir = '/tmp/'
+    else:
+        logdir = os.path.join('logs/{}'.format(datetime.datetime.now().strftime("%I_%M_%p_%B_%d_%Y")))
+        os.mkdir(logdir)
 
     # Distributed training initialization
     if kwargs['distributed']:
@@ -117,7 +122,7 @@ def train(**kwargs):
                 'optimizer': optimizer.state_dict(),
                 'amp': amp.state_dict(),
             }
-            torch.save(checkpoint, 'amp_checkpoint.pt')
+            torch.save(checkpoint, os.path.join(logdir, 'amp_checkpoint.pt'))
 
 
 def train_epoch(model, train_loader, optimizer, epoch, is_master_rank):

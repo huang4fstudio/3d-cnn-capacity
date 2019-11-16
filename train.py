@@ -21,12 +21,16 @@ import wandb
 @click.option('-a', '--architecture', help='Architecture to Use', default='i3d')
 @click.option('-d', '--dataset', help='Dataset to use', default='ucf101')
 @click.option('-r', '--restore', help='Checkpoint file', default=None)
+@click.option('-n', '--num_params_factor', help='Factor for number of params', default=1.0)
+
 @click.option('--distributed', help='use distributed training', is_flag=True, default=False)
 @click.option('--local_rank')
 # Wandb Project
 @click.option('--dryrun', default=False, is_flag=True, help='Run the model as a dryrun')
 @click.option('--wandb-project', default='video-captioning', help='The W&B Project to use')
 @click.option('--wandb-tags', default=None, help='Comma separated list of tags to use for the run')
+
+
 def train(**kwargs):
 
     if kwargs['dryrun']:
@@ -61,6 +65,7 @@ def train(**kwargs):
     batch_size = kwargs['batch_size']
     momentum = kwargs['momentum']
     epochs = kwargs['epochs']
+    num_params_factor = kwargs['num_params_factor']
 
 
     if dataset_name == 'kinetics-400':
@@ -76,7 +81,7 @@ def train(**kwargs):
         raise NotImplementedError('This dataset is currently not supported!')
 
     if architecture == 'i3d':
-        model = I3D(3, num_output_classes).cuda()
+        model = I3D(3, num_output_classes, num_params_factor=num_params_factor).cuda()
     elif architecture == 'i3d_small':
         model = I3DSmall(3, num_output_classes).cuda()
     else:

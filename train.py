@@ -34,7 +34,8 @@ def train(**kwargs):
         logdir = '/tmp/'
     else:
         logdir = os.path.join('logs/{}'.format(datetime.datetime.now().strftime("%I_%M_%p_%B_%d_%Y")))
-        os.mkdir(logdir)
+        if kwargs['distributed'] and int(kwargs['local_rank']) == 0 or not kwargs['distributed']:
+            os.mkdir(logdir)
 
     # Distributed training initialization
     if kwargs['distributed']:

@@ -71,35 +71,36 @@ class InceptionBlock(nn.Module):
 
 class I3D(nn.Module):
 
-    def __init__(self, in_channels, out_channels, pretrained_net=None):
+    def __init__(self, in_channels, out_channels, pretrained_net=None, num_params_factor=1.0):
         super(I3D, self).__init__()
-        self.conv_1 = Conv3d_BN(in_channels, 64, (7, 7, 7), stride=2, padding=3)
+        self.num_params_factor = num_params_factor
+        self.conv_1 = Conv3d_BN(in_channels, int(64 * params_factor), (7, 7, 7), stride=2, padding=3)
 
         self.maxpool_1 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
 
-        self.conv_2 = Conv3d_BN(64, 64, (1, 1, 1))
-        self.conv_3 = Conv3d_BN(64, 192, (3, 3, 3), padding=1)
+        self.conv_2 = Conv3d_BN(64, int(64 * params_factor), (1, 1, 1))
+        self.conv_3 = Conv3d_BN(64, int(192 * params_factor), (3, 3, 3), padding=1)
 
         self.maxpool_2 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
 
-        self.inception_3a = InceptionBlock(192, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['3a']))
-        self.inception_3b = InceptionBlock(256, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['3b']))
+        self.inception_3a = InceptionBlock(int(192 * params_factor), self.build_filter_specs('3a'))
+        self.inception_3b = InceptionBlock(self.get_inception_out('3a'), self.build_filter_specs('3b'))
 
         self.maxpool_3 = nn.MaxPool3d((3, 3, 3), stride=2, padding=1)
         
-        self.inception_4a = InceptionBlock(480, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['4a']))
-        self.inception_4b = InceptionBlock(512, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['4b']))
-        self.inception_4c = InceptionBlock(512, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['4c']))
-        self.inception_4d = InceptionBlock(512, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['4d']))
-        self.inception_4e = InceptionBlock(528, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['4e']))
+        self.inception_4a = InceptionBlock(self.get_inception_out('3b'), self.build_filter_specs('4a'))
+        self.inception_4b = InceptionBlock(self.get_inception_out('4a'), self.build_filter_specs('4b'))
+        self.inception_4c = InceptionBlock(self.get_inception_out('4b'), self.build_filter_specs('4c'))
+        self.inception_4d = InceptionBlock(self.get_inception_out('4c'), self.build_filter_specs('4d'))
+        self.inception_4e = InceptionBlock(self.get_inception_out('4d'), self.build_filter_specs('4e'))
 
         self.maxpool_4 = nn.MaxPool3d((2, 2, 2), stride=2)
 
-        self.inception_5a = InceptionBlock(832, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['5a']))
-        self.inception_5b = InceptionBlock(832, I3D.build_filter_specs(INCEPTION_BLOCK_FILTER_SPECS['5b']))
+        self.inception_5a = InceptionBlock(self.get_inception_out('4e'), self.build_filter_specs('5a'))
+        self.inception_5b = InceptionBlock(self.get_inception_out('5a'), self.build_filter_specs('5b'))
        
         self.avgpool_1 = nn.AvgPool3d((8, 7, 7))
-        self.out_conv = nn.Conv3d(1024, out_channels, (1, 1, 1))
+        self.out_conv = nn.Conv3d(self.get_inception_out('5b'), out_channels, (1, 1, 1))
 
         #if pretrained_net is not None:
         #    self.load_pretrained_weights(pretrained_net)
@@ -139,8 +140,11 @@ class I3D(nn.Module):
         #out_logits = flatten(f_out)
         return out_logits
 
-    @staticmethod
-    def build_filter_specs(filter_list):
+    def build_filter_specs(self, layer_name):
+        filter_list = [int(n * self.num_params_factor) for n in INCEPTION_BLOCK_FILTER_SPECS[layer_name]]
         spec_keys = ['1x1', '3x3_reduce1', '3x3_1', '3x3_reduce2', '3x3_2', 'pool_proj']
         return {k: v for k, v in zip(spec_keys, filter_list)}
     
+    def get_inception_out(self, layer_name):
+        filter_list = [int(n * self.num_params_factor) for n in INCEPTION_BLOCK_FILTER_SPECS[layer_name]]
+        return filter_list[0] + filter_list[2] + filter_list[4] + filter_list[5]

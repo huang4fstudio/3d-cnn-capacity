@@ -74,16 +74,16 @@ class I3D(nn.Module):
     def __init__(self, in_channels, out_channels, pretrained_net=None, num_params_factor=1.0):
         super(I3D, self).__init__()
         self.num_params_factor = num_params_factor
-        self.conv_1 = Conv3d_BN(in_channels, int(64 * params_factor), (7, 7, 7), stride=2, padding=3)
+        self.conv_1 = Conv3d_BN(in_channels, int(64 * num_params_factor), (7, 7, 7), stride=2, padding=3)
 
         self.maxpool_1 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
 
-        self.conv_2 = Conv3d_BN(64, int(64 * params_factor), (1, 1, 1))
-        self.conv_3 = Conv3d_BN(64, int(192 * params_factor), (3, 3, 3), padding=1)
+        self.conv_2 = Conv3d_BN(int(64 * num_params_factor), int(64 * num_params_factor), (1, 1, 1))
+        self.conv_3 = Conv3d_BN(int(64 * num_params_factor), int(192 * num_params_factor), (3, 3, 3), padding=1)
 
         self.maxpool_2 = nn.MaxPool3d((1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
 
-        self.inception_3a = InceptionBlock(int(192 * params_factor), self.build_filter_specs('3a'))
+        self.inception_3a = InceptionBlock(int(192 * num_params_factor), self.build_filter_specs('3a'))
         self.inception_3b = InceptionBlock(self.get_inception_out('3a'), self.build_filter_specs('3b'))
 
         self.maxpool_3 = nn.MaxPool3d((3, 3, 3), stride=2, padding=1)
@@ -141,7 +141,9 @@ class I3D(nn.Module):
         return out_logits
 
     def build_filter_specs(self, layer_name):
-        filter_list = [int(n * self.num_params_factor) for n in INCEPTION_BLOCK_FILTER_SPECS[layer_name]]
+        f = [int(n) for n in INCEPTION_BLOCK_FILTER_SPECS[layer_name]]
+        k = self.num_params_factor
+        filter_list = [int(f[0] * k), int(f[1] * k), int(f[2] * k), int(f[3] * k), int(f[4] * k), int(f[5] * k)] 
         spec_keys = ['1x1', '3x3_reduce1', '3x3_1', '3x3_reduce2', '3x3_2', 'pool_proj']
         return {k: v for k, v in zip(spec_keys, filter_list)}
     

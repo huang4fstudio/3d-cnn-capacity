@@ -5,6 +5,8 @@ from torch import cat
 from typing import Union, Dict
 #import torchvision.models as models
 
+from .conv3d_bn import Conv3d_BN        
+
 INCEPTION_BLOCK_FILTER_SPECS = {
     '3a': [64, 96, 128, 16, 32 ,32],
     '3b': [128, 128, 192, 32, 96, 64],
@@ -16,30 +18,6 @@ INCEPTION_BLOCK_FILTER_SPECS = {
     '5a': [256, 160, 320, 32, 128, 128],
     '5b': [384, 192, 384, 48, 128, 128]
 }
-
-class Conv3d_BN(nn.Module):
-    def __init__(self,
-                 in_channels : int,
-                 out_channels : int,
-                 kernel : Union[list, tuple],
-                 stride: Union[int, list, tuple] = 1,
-                 padding: int = 0,
-                 bn : bool = True,
-                 activation : nn.Module = nn.ReLU()):
-        super(Conv3d_BN, self).__init__()
-        self.conv = nn.Conv3d(in_channels, out_channels, kernel, stride=stride, padding=padding)
-        self.activation = activation
-        self.bn = None
-        if bn:
-            self.bn = nn.BatchNorm3d(out_channels)
-
-    def forward(self, x):
-        x = self.conv(x)
-        if self.bn is not None:
-            x = self.bn(x)
-        if self.activation is not None:
-            x = self.activation(x)
-        return x
         
 
 class InceptionBlock(nn.Module):
@@ -112,6 +90,7 @@ class I3D(nn.Module):
         self.conv_2.conv.weight = nn.Parameter(net.conv2.conv.weight.repeat(1, 1, 1))
         pass
     '''
+    
     
     def forward(self, x):
         c1_out = self.conv_1(x)

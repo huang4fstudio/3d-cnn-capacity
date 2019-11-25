@@ -69,11 +69,10 @@ def train(**kwargs):
     num_params_factor = kwargs['num_params_factor']
 
 
-    if dataset_name == 'kinetics-400':
-        pass
-        # num_output_classes = 400
-        # train_dataset = Kinetics400('./data/400/kinetics_400_train.json')
-        # val_dataset = Kinetics400('./data/400/kinetics_400_validate.json')
+    if dataset_name == 'kinetics-700':
+        num_output_classes = 700
+        train_dataset = ActivityRecognitionDataset('/data/davidchan/kinetics/kinetics700_downsampled/train.json')
+        val_dataset = ActivityRecognitionDataset('/data/davidchan/kinetics/kinetics700_downsampled/val.json')
     elif dataset_name == 'ucf101':
         num_output_classes = 101
         train_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_train.json', '/data/ucf101/downsampled/')

@@ -5,7 +5,7 @@ import json
 import torch
 import numpy as np
 import skvideo.io
-
+import sys
 
 class ActivityRecognitionDataset(torch.utils.data.Dataset):
     def __init__(self, dataset_json, dataset_root, pad_frames=64):
@@ -33,4 +33,23 @@ class ActivityRecognitionDataset(torch.utils.data.Dataset):
         return {
             'video': video_frames
             'class': elem['class'],
+        }
+
+class RandomDataset(torch.utils.data.Dataset):
+
+    def __init__(self, dataset_size, n_classes):
+        self.dataset_size = dataset_size
+        self.n_classes = n_classes
+        self.seed_map = {}
+
+    def __len__(self):
+        return self.dataset_size
+
+    def __getitem__(self, idx):
+        if idx not in self.seed_map:
+            self.seed_map[idx] = random.randint(0, sys.maxsize)
+        np.random.seed(self.seed_map[idx])
+        return {
+            'video': np.random.rand(64, 224, 224, 3),
+            'class': np.random.randint(0, self.n_classes)
         }

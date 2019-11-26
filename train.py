@@ -4,7 +4,7 @@ import datetime
 from models.i3d import I3D
 from models.i3d_small import I3DSmall
 import torch
-from data.dataset import ActivityRecognitionDataset
+from data.dataset import ActivityRecognitionDataset, RandomDataset
 
 from apex import amp
 from apex.parallel import DistributedDataParallel
@@ -22,7 +22,10 @@ import wandb
 @click.option('-d', '--dataset', help='Dataset to use', default='ucf101')
 @click.option('-r', '--restore', help='Checkpoint file', default=None)
 @click.option('-n', '--num_params_factor', help='Factor for number of params', default=1.0)
-
+# Random DB options
+@click.option('--random-ds-samples', default=100, help='Number of samples in random dataset')
+@click.option('--random-ds-classes', defalut=8, help='Number of classes in random dataset')
+# Distributed opts
 @click.option('--distributed', help='use distributed training', is_flag=True, default=False)
 @click.option('--local_rank')
 # Wandb Project
@@ -77,6 +80,9 @@ def train(**kwargs):
         num_output_classes = 101
         train_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_train.json', '/data/ucf101/downsampled/')
         val_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_val.json', '/data/ucf101/downsampled/')
+    elif dataset_name == 'random':
+        train_dataset = RandomDataset(kwargs['random_ds_samples'], kwargs['random_ds_classes'])
+        val_dataset = RandomDataset(1, 1)
     else:
         raise NotImplementedError('This dataset is currently not supported!')
 

@@ -82,7 +82,7 @@ def train(**kwargs):
         val_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_val.json', '/data/ucf101/downsampled/')
     elif dataset_name == 'random':
         train_dataset = RandomDataset(kwargs['random_ds_samples'], kwargs['random_ds_classes'])
-        val_dataset = RandomDataset(1, 1)
+        val_dataset = RandomDataset(64, kwargs['random_ds_classes'])
     else:
         raise NotImplementedError('This dataset is currently not supported!')
 

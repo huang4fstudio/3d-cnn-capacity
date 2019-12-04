@@ -6,6 +6,7 @@ import torch
 import numpy as np
 import skvideo.io
 import sys
+import random
 
 class ActivityRecognitionDataset(torch.utils.data.Dataset):
     def __init__(self, dataset_json, dataset_root, pad_frames=64):
@@ -31,7 +32,7 @@ class ActivityRecognitionDataset(torch.utils.data.Dataset):
             video_frames = np.pad(video_frames[:self.pad_frames], (0,self.pad_frames - video_frames.shape[0],0,0,0,0,0,0))
 
         return {
-            'video': video_frames
+            'video': video_frames,
             'class': elem['class'],
         }
 
@@ -47,7 +48,7 @@ class RandomDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         if idx not in self.seed_map:
-            self.seed_map[idx] = random.randint(0, sys.maxsize)
+            self.seed_map[idx] = random.randint(0, 2 ** 32 - 1)
         np.random.seed(self.seed_map[idx])
         return {
             'video': np.random.rand(64, 224, 224, 3),

@@ -6,14 +6,20 @@ import tqdm
 from alexandria.layers.util import Flatten
 
 @click.command()
-def main():
+@click.option('--min-points', default=0, help='Min number of points in the search')
+@click.option('--max-points', default=50000, help='Max number of points in the search')
+@click.option('--n-classes', default=2, help='Number of classes in the problem')
+@click.option('--batch-size', default=256, help='Model batch size')
+@click.option('--term-count', default=500, help='How many epochs to run before giving up')
+@click.option('--success-threshold', default=0.99, help='The threshold which is considered a success')
+def main(**kwargs):
 
-    min_pts = 0
-    current_pts = 25000
-    max_pts = 50000
-    num_classes = 2
-    batch_size = 256
-    COUNT_LIMIT = 500
+    min_pts = kwargs['min_points']
+    max_pts = kwargs['max_points']
+    current_pts = (max_pts - min_pts) // 2 + min_pts
+    num_classes = kwargs['n_classes']
+    batch_size = kwargs['batch_size']
+    count_limit = kwargs['term_count']
 
     while True:
         num_points = current_pts
@@ -62,11 +68,11 @@ def main():
                 if np.mean(epoch_acc) > best_acc:
                     best_acc = np.mean(epoch_acc)
                     static_ct = 0
-                    if best_acc > 0.99:
+                    if best_acc > kwargs['success_threshold']:
                         break
                 else:
                     static_ct += 1
-                    if static_ct > COUNT_LIMIT:
+                    if static_ct > count_limit:
                         break
                 pbar.set_description_str('L: {}, A: {}, S: {}'.format(
                     np.mean(epoch_acc), best_acc, static_ct
@@ -74,12 +80,12 @@ def main():
                 pbar.update(1)
 
 
-            if static_ct <= COUNT_LIMIT:
+            if static_ct <= count_limit:
                 min_pts = current_pts
             else:
                 max_pts = current_pts
 
-            if abs(max_pts-min_pts) < COUNT_LIMIT:
+            if abs(max_pts-min_pts) < count_limit:
                 break
 
             current_pts = (max_pts - min_pts) // 2 + min_pts

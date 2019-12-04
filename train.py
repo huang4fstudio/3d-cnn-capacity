@@ -101,8 +101,8 @@ def train(**kwargs):
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
 
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=1, pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=1, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=8, pin_memory=True)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 

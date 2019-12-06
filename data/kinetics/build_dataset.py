@@ -17,7 +17,7 @@ OUTPUT_PATHS = [
 
 # Discover categories
 categories = [(f.path, f.name) for f in os.scandir(ROOT_FOLDERS[0]) if f.is_dir()]
-if CAT_MAP is None:
+if not os.path.exists(CAT_MAP):
     cat_map = {i[1]:idx for idx, i in enumerate(categories)}
     write_json(cat_map, CAT_MAP)
 else:

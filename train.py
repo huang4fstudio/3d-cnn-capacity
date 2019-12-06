@@ -74,8 +74,8 @@ def train(**kwargs):
 
     if dataset_name == 'kinetics-700':
         num_output_classes = 700
-        train_dataset = ActivityRecognitionDataset('/data/davidchan/kinetics/kinetics700_downsampled/train.json')
-        val_dataset = ActivityRecognitionDataset('/data/davidchan/kinetics/kinetics700_downsampled/val.json')
+        train_dataset = ActivityRecognitionDataset('/data/davidchan/kinetics/kinetics700_downsampled/train.json', '/data/davidchan/kinetics/kinetics700_downsampled/train/')
+        val_dataset = ActivityRecognitionDataset('/data/davidchan/kinetics/kinetics700_downsampled/val.json', '/data/davidchan/kinetics/kinetics700_downsampled/val/')
     elif dataset_name == 'ucf101':
         num_output_classes = 101
         train_dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_train.json', '/data/ucf101/downsampled/')
@@ -101,8 +101,8 @@ def train(**kwargs):
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
 
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=1, pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=1, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=8, pin_memory=True)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 

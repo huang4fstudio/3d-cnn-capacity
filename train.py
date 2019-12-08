@@ -13,7 +13,7 @@ import wandb
 
 
 @click.command()
-@click.option('-l', '--learning_rate', help='Initial Learning Rate', default=0.0001)
+@click.option('-l', '--learning_rate', help='Initial Learning Rate', default=3e-4)
 @click.option('-m', '--momentum', help="Momentum for SGD", default=0.9)
 @click.option('-b', '--batch_size', help='Batch Size', default=8)
 @click.option('-e', '--epochs', help='Number of Epochs to Train the Model for', default=300)
@@ -101,10 +101,10 @@ def train(**kwargs):
     val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, shuffle=False)
 
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8, pin_memory=True)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=8, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=4, pin_memory=True)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     # Apex AMP distributed code
     model, optimizer = amp.initialize(model, optimizer, opt_level='O2') # Let's keep it at O2 for now

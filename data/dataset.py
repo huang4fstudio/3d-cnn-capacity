@@ -48,9 +48,7 @@ class RandomDataset(torch.utils.data.Dataset):
         return self.dataset_size
 
     def __getitem__(self, idx):
-        if idx not in self.seed_map:
-            self.seed_map[idx] = random.randint(0, 2 ** 32 - 1)
-        np.random.seed(self.seed_map[idx])
+        np.random.seed(idx)
         return {
             'video': np.random.rand(64, 224, 224, 3),
             'class': np.random.randint(0, self.n_classes)

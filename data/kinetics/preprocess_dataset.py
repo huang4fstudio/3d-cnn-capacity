@@ -7,7 +7,7 @@ import numpy as np
 import multiprocessing.pool
 
 from alexandria.util import write_json, load_json
-from alexandria.util.video import load_video_with_fps, downsample_video_fps, resize_video, shatter_video
+from alexandria.data.video import load_video_with_fps, downsample_video_fps, resize_video, shatter_video
 
 # Open the dataset
 dataset_root_path = '/data/davidchan/kinetics/kinetics700/train/'

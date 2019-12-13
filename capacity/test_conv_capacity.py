@@ -13,10 +13,9 @@ from torch.nn.modules import Flatten
 @click.option('--term-count', default=500, help='How many epochs to run before giving up')
 @click.option('--success-threshold', default=0.99, help='The threshold which is considered a success')
 @click.option('--num-filters-factor', default=1.0, help='Factor for the number of filters')
-@click.option('--use-flat-model', default=False, help='Factor for the number of filters')
-@click.option('--num-channels', default=3, help='Factor for the number of filters')
-
-
+@click.option('--use-flat-model', default=False, help='Use linear model instead of convolutional model')
+@click.option('--num-channels', default=3, help='The number of input channels to use')
+@click.option('--search-threshold', default=50, help='The distance between max/min at which to terminate the search')
 def main(**kwargs):
 
     min_pts = kwargs['min_points']
@@ -35,12 +34,12 @@ def main(**kwargs):
         num_points = current_pts
         print('Testing {} points...'.format(num_points))
         random_data = torch.tensor(np.random.rand(num_points, num_input_channels, 16, 16)).float()
-        
+
         if num_classes == 1:
             random_labels = torch.tensor(np.random.randint(0, 2, size=[num_points, 1])).float()
         else:
             random_labels = torch.tensor(np.random.randint(0, num_classes, size=[num_points]))
-            
+
 
         if use_flat_model:
             model = torch.nn.Sequential(
@@ -49,7 +48,7 @@ def main(**kwargs):
                 torch.nn.Sigmoid(),
                 torch.nn.Linear(int(8 * num_filters_factor), num_classes),
             )
-        else:   
+        else:
             model = torch.nn.Sequential(
                 torch.nn.Conv2d(num_input_channels, int(8 * num_filters_factor), (4,4), (2,2)),
                 torch.nn.Sigmoid(),
@@ -117,7 +116,7 @@ def main(**kwargs):
             else:
                 max_pts = current_pts
 
-            if abs(max_pts-min_pts) < 50:
+            if abs(max_pts-min_pts) < kwargs['search_threshold']:
                 break
 
             current_pts = (max_pts - min_pts) // 2 + min_pts

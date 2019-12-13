@@ -45,9 +45,9 @@ def main(**kwargs):
         if use_flat_model:
             model = torch.nn.Sequential(
                 Flatten(),
-                torch.nn.Linear(16 * 16 * num_input_channels, 4),
+                torch.nn.Linear(16 * 16 * num_input_channels, int(8 * num_filters_factor)),
                 torch.nn.Sigmoid(),
-                torch.nn.Linear(4, num_classes),
+                torch.nn.Linear(int(8 * num_filters_factor), num_classes),
             )
         else:   
             model = torch.nn.Sequential(
@@ -56,6 +56,7 @@ def main(**kwargs):
                 Flatten(),
                 torch.nn.Linear(7*7*int(8 * num_filters_factor), num_classes),
             )
+        print('Num Params {}'.format(sum([np.prod(i.shape) for i in model.parameters()])))
 
         if num_classes == 1:
             criterion = torch.nn.BCEWithLogitsLoss()

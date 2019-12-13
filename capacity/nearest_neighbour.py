@@ -5,11 +5,11 @@ import tqdm
 
 def main():
     batch_size = 1
-    dataset = ActivityRecognitionDataset('/data/davidchan/kinetics/kinetics700_downsampled/train.json', '/data/davidchan/kinetics/kinetics700_downsampled/train/')
+    dataset = ActivityRecognitionDataset('/data/ucf101/ucf101_train.json', '/data/ucf101/downsampled/')
     data_loader_1 = torch.utils.data.DataLoader(dataset, batch_size=batch_size, pin_memory=True)
     data_loader_2 = torch.utils.data.DataLoader(dataset, batch_size=batch_size, pin_memory=True)
 
-    correct_cls += 1
+    correct_cls = 0
     data_cls = 0
     for (data_1, labels) in tqdm.tqdm(data_loader_1):
         min_dist = 1e10

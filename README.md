@@ -1,1 +1,1 @@
-# gerald
+# Capacity for 3D CNNs
